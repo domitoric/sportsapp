@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Players</title>
+    <style>
+        :root {
+            --bg: #f4efe6;
+            --panel: #fffaf2;
+            --accent: #0d5c63;
+            --text: #1e2a2f;
+            --muted: #617379;
+            --border: #d4ccc0;
+        }
+        body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at top, #fffdf8, var(--bg)); color: var(--text); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 32px 16px 48px; }
+        .nav { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .nav a { text-decoration: none; color: var(--accent); font-weight: 700; padding: 10px 14px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); }
+        .nav a.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 20px; margin-top: 20px; box-shadow: 0 10px 30px rgba(30, 42, 47, 0.08); }
+        .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+        .inline-form { display: inline-flex; }
+        label { display: block; font-size: 14px; margin-bottom: 6px; }
+        select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #cbbfb1; font: inherit; }
+        button { min-width: 168px; min-height: 44px; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--accent); background: white; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+        button:hover { background: var(--accent); color: white; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+        .hint { color: var(--muted); }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+        .action-cell { width: 1%; white-space: nowrap; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav class="nav">
+        <a href="/" th:classappend="${activePage == 'dashboard'} ? 'active'">Dashboard</a>
+        <a href="/teams" th:classappend="${activePage == 'teams'} ? 'active'">Teams</a>
+        <a href="/players/top" th:classappend="${activePage == 'players'} ? 'active'">Players</a>
+        <a href="/matches" th:classappend="${activePage == 'matches'} ? 'active'">Matches</a>
+    </nav>
+
+    <div class="card">
+        <div class="toolbar">
+            <div>
+                <h1>Players</h1>
+                <p class="hint" th:if="${syncStatus == 'ok'}">Update completed.</p>
+                <p class="hint" th:if="${syncStatus == 'error'}">Update limit reached. Try again later.</p>
+            </div>
+            <form method="post" action="/sync-data" class="inline-form">
+                <input type="hidden" name="redirectTo" value="/players/top">
+                <input type="hidden" name="scope" value="players">
+                <button type="submit">Update Database</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Add Player From External API</h2>
+        <form method="post" action="/players" class="form-grid">
+            <div>
+                <label for="playerSelection">Available Players</label>
+                <select id="playerSelection" name="externalPlayerId" required>
+                    <option value="">Select player</option>
+                    <option th:each="player : ${availablePlayers}"
+                            th:value="${player.externalPlayerId}"
+                            th:text="${player.name + ' (' + player.teamName + ')'}"></option>
+                </select>
+            </div>
+            <div>
+                <button type="submit">Add Player</button>
+            </div>
+        </form>
+        <p class="hint">Players are shown only for tracked teams.</p>
+    </div>
+
+    <div class="card">
+        <h2>Tracked Players</h2>
+        <table>
+            <thead><tr><th>Name</th><th>Position</th><th>Team</th><th>Goals</th><th class="action-cell">Action</th></tr></thead>
+            <tbody>
+            <tr th:each="player : ${players}">
+                <td th:text="${player.name}"></td>
+                <td th:text="${player.position}"></td>
+                <td th:text="${player.teamName}"></td>
+                <td th:text="${player.goals}"></td>
+                <td class="action-cell">
+                    <form method="post" th:action="@{/players/{id}/delete(id=${player.id})}" class="inline-form">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(players)}">
+                <td colspan="5">Only manually added players are shown here.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

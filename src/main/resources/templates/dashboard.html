@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Tracker</title>
+    <style>
+        :root {
+            --bg: #f4efe6;
+            --panel: #fffaf2;
+            --accent: #0d5c63;
+            --accent-soft: #d7ece9;
+            --text: #1e2a2f;
+            --muted: #617379;
+            --border: #d4ccc0;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            background: radial-gradient(circle at top, #fffdf8, var(--bg));
+            color: var(--text);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 16px 48px;
+        }
+        .nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .nav a {
+            text-decoration: none;
+            color: #0d5c63;
+            font-weight: 700;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #fffaf2;
+            border: 1px solid var(--border);
+        }
+        .nav a.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        h1, h2 { margin-top: 0; }
+        .hero {
+            padding: 24px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent), #1d7874);
+            color: white;
+            margin-bottom: 24px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(30, 42, 47, 0.08);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        th { color: var(--muted); }
+        .score {
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        button {
+            min-width: 168px;
+            min-height: 44px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            background: white;
+            color: var(--accent);
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+        }
+        button:hover {
+            background: var(--accent);
+            color: white;
+        }
+        .status {
+            color: white;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav class="nav">
+        <a href="/" th:classappend="${activePage == 'dashboard'} ? 'active'">Dashboard</a>
+        <a href="/teams" th:classappend="${activePage == 'teams'} ? 'active'">Teams</a>
+        <a href="/players/top" th:classappend="${activePage == 'players'} ? 'active'">Players</a>
+        <a href="/matches" th:classappend="${activePage == 'matches'} ? 'active'">Matches</a>
+    </nav>
+    <section class="hero">
+        <div class="toolbar">
+            <div>
+                <h1>Sports Tracker</h1>
+                <p th:text="${'Overview of teams, players and matches for ' + currentYear + '.'}"></p>
+                <p class="status" th:if="${syncStatus == 'ok'}">Update completed.</p>
+                <p class="status" th:if="${syncStatus == 'error'}">Update limit reached. Try again later.</p>
+            </div>
+            <form method="post" action="/sync-data">
+                <input type="hidden" name="redirectTo" value="/">
+                <input type="hidden" name="scope" value="overview">
+                <button type="submit">Update Database</button>
+            </form>
+        </div>
+    </section>
+    <section class="grid">
+        <div class="card">
+            <h2>Teams</h2>
+            <table>
+                <thead><tr><th>Name</th><th>Wins</th><th>Draws</th><th>Losses</th></tr></thead>
+                <tbody>
+                <tr th:each="team : ${teams}">
+                    <td th:text="${team.name}"></td>
+                    <td th:text="${team.wins}"></td>
+                    <td th:text="${team.draws}"></td>
+                    <td th:text="${team.losses}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h2>Players</h2>
+            <table>
+                <thead><tr><th>Name</th><th>Position</th><th>Team</th><th>Goals</th></tr></thead>
+                <tbody>
+                <tr th:each="player : ${players}">
+                    <td th:text="${player.name}"></td>
+                    <td th:text="${player.position}"></td>
+                    <td th:text="${player.teamName}"></td>
+                    <td th:text="${player.goals}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h2>Matches</h2>
+            <table>
+                <thead><tr><th>Date</th><th>Match</th><th>Score</th></tr></thead>
+                <tbody>
+                <tr th:each="match : ${matches}">
+                    <td th:text="${match.date}"></td>
+                    <td th:text="${match.homeTeamName + ' vs ' + match.awayTeamName}"></td>
+                    <td class="score" th:text="${match.scoreHome + ':' + match.scoreAway}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+</body>
+</html>

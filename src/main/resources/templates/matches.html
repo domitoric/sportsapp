@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matches</title>
+    <style>
+        :root {
+            --bg: #f4efe6;
+            --panel: #fffaf2;
+            --accent: #0d5c63;
+            --text: #1e2a2f;
+            --muted: #617379;
+            --border: #d4ccc0;
+        }
+        body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at top, #fffdf8, var(--bg)); color: var(--text); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 32px 16px 48px; }
+        .nav { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .nav a { text-decoration: none; color: var(--accent); font-weight: 700; padding: 10px 14px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); }
+        .nav a.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 20px; margin-top: 20px; box-shadow: 0 10px 30px rgba(30, 42, 47, 0.08); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+        .hint { color: var(--muted); margin-top: 8px; }
+        button { min-width: 168px; min-height: 44px; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--accent); background: white; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+        button:hover { background: var(--accent); color: white; }
+        .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <nav class="nav">
+        <a href="/" th:classappend="${activePage == 'dashboard'} ? 'active'">Dashboard</a>
+        <a href="/teams" th:classappend="${activePage == 'teams'} ? 'active'">Teams</a>
+        <a href="/players/top" th:classappend="${activePage == 'players'} ? 'active'">Players</a>
+        <a href="/matches" th:classappend="${activePage == 'matches'} ? 'active'">Matches</a>
+    </nav>
+
+    <div class="card">
+        <div class="toolbar">
+            <div>
+                <h1 th:text="${'Matches For Tracked Teams in ' + currentYear}"></h1>
+                <p class="hint">This page shows matches only for teams that were already added on the Teams page.</p>
+                <p class="hint" th:if="${syncStatus == 'ok'}">Update completed.</p>
+                <p class="hint" th:if="${syncStatus == 'error'}">Update limit reached. Try again later.</p>
+            </div>
+            <form method="post" action="/sync-data">
+                <input type="hidden" name="redirectTo" value="/matches">
+                <input type="hidden" name="scope" value="matches">
+                <button type="submit">Update Database</button>
+            </form>
+        </div>
+        <table>
+            <thead><tr><th>Date</th><th>Home</th><th>Away</th><th>Score</th></tr></thead>
+            <tbody>
+            <tr th:each="match : ${matches}">
+                <td th:text="${match.date}"></td>
+                <td th:text="${match.homeTeamName}"></td>
+                <td th:text="${match.awayTeamName}"></td>
+                <td th:text="${match.scoreHome + ':' + match.scoreAway}"></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(matches)}">
+                <td colspan="4">Track at least two teams to see their imported matches here.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
