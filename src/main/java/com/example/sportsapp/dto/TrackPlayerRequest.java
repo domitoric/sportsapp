@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO форми для додавання зовнішнього гравця до локального відстеження.
+ * Form DTO for adding an external player to local tracking.
  */
 @Getter
 @Setter
@@ -21,3 +21,4 @@ public class TrackPlayerRequest {
     private Long externalPlayerId;
 
 }
+

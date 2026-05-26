@@ -10,12 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.sportsapp.dto.PlayerDto;
 import com.example.sportsapp.dto.TeamDto;
+import com.example.sportsapp.entity.AppUser;
 import com.example.sportsapp.entity.Player;
 import com.example.sportsapp.entity.Team;
-import com.example.sportsapp.service.DataNormalizationService;
+import com.example.sportsapp.repository.AppUserRepository;
 import com.example.sportsapp.repository.MatchRepository;
 import com.example.sportsapp.repository.PlayerRepository;
 import com.example.sportsapp.repository.TeamRepository;
+import com.example.sportsapp.service.DataNormalizationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,12 +26,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(username = "tester")
 /**
- * Базові інтеграційні тести локальної логіки застосунку без моків зовнішнього API.
+ * Basic integration tests for local application logic without mocking the external API.
  */
 class SportsappApplicationTests {
 
@@ -43,6 +47,9 @@ class SportsappApplicationTests {
     private MatchRepository matchRepository;
 
     @Autowired
+    private AppUserRepository appUserRepository;
+
+    @Autowired
     private PlayerRepository playerRepository;
 
     @Autowired
@@ -51,22 +58,29 @@ class SportsappApplicationTests {
     @Autowired
     private DataNormalizationService dataNormalizationService;
 
+    private AppUser testUser;
+
     @BeforeEach
     void setUp() {
         matchRepository.deleteAll();
         playerRepository.deleteAll();
         teamRepository.deleteAll();
+        appUserRepository.deleteAll();
+        testUser = appUserRepository.save(AppUser.builder()
+                .username("tester")
+                .passwordHash("hashed")
+                .build());
     }
 
     /**
-     * Перевіряє, що Spring-контекст успішно підіймається.
+     * Verifies that the Spring context starts successfully.
      */
     @Test
     void contextLoads() {
     }
 
     /**
-     * Перевіряє створення команди через REST API в оновленій моделі без поля city.
+     * Verifies team creation through the REST API in the updated model without a city field.
      */
     @Test
     void createsTeamWithoutCityField() throws Exception {
@@ -84,7 +98,7 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє, що після збереження матчу коректно оновлюються статистика команд і голи гравців.
+     * Verifies that saving a match correctly updates team statistics and player goals.
      */
     @Test
     void updatesStatsAndTopPlayersAfterSavingMatch() throws Exception {
@@ -180,7 +194,7 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє доступність основних HTML-сторінок для браузера.
+     * Verifies that the main HTML pages are available to the browser.
      */
     @Test
     void servesHtmlPagesOnBrowserRoutes() throws Exception {
@@ -198,7 +212,7 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє, що матчі попереднього року не впливають на статистику поточного року.
+     * Verifies that matches from the previous year do not affect current-year statistics.
      */
     @Test
     void ignoresPreviousYearMatchesInCurrentYearStats() throws Exception {
@@ -250,7 +264,7 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє, що майбутні матчі не враховуються як зіграні.
+     * Verifies that future matches are not counted as played.
      */
     @Test
     void ignoresFutureMatchesInCurrentYearStats() throws Exception {
@@ -291,21 +305,25 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє, що в REST-відповідь потрапляють тільки tracked-команди.
+     * Verifies that only tracked teams appear in the REST response.
      */
     @Test
     void returnsOnlyTrackedTeamsInTeamApi() throws Exception {
         teamRepository.save(Team.builder()
+                .owner(testUser)
                 .name("Tracked FC")
                 .tracked(true)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
 
         teamRepository.save(Team.builder()
+                .owner(testUser)
                 .name("Untracked Opponent")
                 .tracked(false)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
 
@@ -316,7 +334,7 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє, що HTML-маршрут синхронізації повертає редірект, а не 500-помилку.
+     * Verifies that the HTML sync route returns a redirect instead of a 500 error.
      */
     @Test
     void syncDatabaseRouteRedirectsInsteadOfThrowingServerError() throws Exception {
@@ -329,14 +347,16 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє видалення гравця через HTML-flow.
+     * Verifies player deletion through the HTML flow.
      */
     @Test
     void deletesTrackedPlayerFromHtmlFlow() throws Exception {
         Team team = teamRepository.save(Team.builder()
+                .owner(testUser)
                 .name("Delete Player FC")
                 .tracked(true)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
 
@@ -362,7 +382,7 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє, що видалення команди очищає пов'язаних гравців і матчі.
+     * Verifies that deleting a team removes related players and matches.
      */
     @Test
     void deletesTrackedTeamAlongWithItsMatchesAndPlayersFromHtmlFlow() throws Exception {
@@ -423,11 +443,12 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Регресійний тест: видалення однієї tracked-команди не повинно скидати голи гравців інших команд.
+     * Regression test: deleting one tracked team must not reset goals for players from other teams.
      */
     @Test
     void deletingOneTrackedTeamDoesNotResetGoalsForPlayersOnOtherTeams() throws Exception {
         Team teamToDelete = teamRepository.save(Team.builder()
+                .owner(testUser)
                 .externalTeamId(1001L)
                 .name("Delete Me FC")
                 .tracked(true)
@@ -436,6 +457,7 @@ class SportsappApplicationTests {
                 .losses(0)
                 .build());
         Team otherTeam = teamRepository.save(Team.builder()
+                .owner(testUser)
                 .externalTeamId(1002L)
                 .name("Keep Me FC")
                 .tracked(true)
@@ -445,6 +467,7 @@ class SportsappApplicationTests {
                 .build());
 
         playerRepository.save(Player.builder()
+                .owner(testUser)
                 .externalPlayerId(2001L)
                 .name("Scorer")
                 .position("Forward")
@@ -465,28 +488,34 @@ class SportsappApplicationTests {
     }
 
     /**
-     * Перевіряє автоматичне злиття дублікатів команд за external id і назвою.
+     * Verifies automatic merging of duplicate teams by external id and name.
      */
     @Test
     void mergesDuplicateTeamsByExternalIdAndName() throws Exception {
         teamRepository.save(Team.builder()
+                .owner(testUser)
                 .externalTeamId(133604L)
                 .name("Arsenal")
                 .tracked(true)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
         teamRepository.save(Team.builder()
+                .owner(testUser)
                 .externalTeamId(133604L)
                 .name("Arsenal")
                 .tracked(false)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
         teamRepository.save(Team.builder()
+                .owner(testUser)
                 .name("Arsenal")
                 .tracked(false)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
 
@@ -498,3 +527,4 @@ class SportsappApplicationTests {
                 .andExpect(jsonPath("$[0].name").value("Arsenal"));
     }
 }
+

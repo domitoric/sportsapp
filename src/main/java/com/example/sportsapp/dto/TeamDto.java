@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO для передачі даних відстежуваної команди між шарами застосунку.
+ * DTO for transferring tracked team data between application layers.
  */
 @Getter
 @Setter
@@ -28,3 +28,4 @@ public class TeamDto {
 
     private int losses;
 }
+

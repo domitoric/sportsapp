@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
- * Репозиторій для збереження матчів і завантаження пов'язаних сутностей.
+ * Repository for storing matches and loading related entities.
  */
 public interface MatchRepository extends JpaRepository<Match, Long> {
 
@@ -19,9 +21,31 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     List<Match> findAllByOrderByDateDesc();
 
     @EntityGraph(attributePaths = {"homeTeam", "awayTeam", "teams", "scorers"})
+    List<Match> findAllByOwner_IdOrderByDateDesc(Long ownerId);
+
+    @EntityGraph(attributePaths = {"homeTeam", "awayTeam", "teams", "scorers"})
+    Optional<Match> findByIdAndOwner_Id(Long id, Long ownerId);
+
+    @EntityGraph(attributePaths = {"homeTeam", "awayTeam", "teams", "scorers"})
     Optional<Match> findByDateAndHomeTeam_IdAndAwayTeam_Id(
             java.time.LocalDate date,
             Long homeTeamId,
             Long awayTeamId
     );
+
+    @EntityGraph(attributePaths = {"homeTeam", "awayTeam", "teams", "scorers"})
+    Optional<Match> findByDateAndHomeTeam_IdAndAwayTeam_IdAndOwner_Id(
+            java.time.LocalDate date,
+            Long homeTeamId,
+            Long awayTeamId,
+            Long ownerId
+    );
+
+    @Query("""
+            select distinct m from Match m
+            join m.teams t
+            where t.id = :teamId and m.owner.id = :ownerId
+            """)
+    List<Match> findAllByTeamIdAndOwnerId(@Param("teamId") Long teamId, @Param("ownerId") Long ownerId);
 }
+

@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Сутність гравця, пов'язана з командою та, за потреби, із зовнішнім API-ідентифікатором.
+ * Player entity linked to a team and, when applicable, to an external API id.
  */
 @Entity
 @Table(name = "players")
@@ -30,6 +30,10 @@ public class Player {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private AppUser owner;
+
     private Long externalPlayerId;
 
     private String name;
@@ -42,3 +46,4 @@ public class Player {
     @JoinColumn(name = "team_id")
     private Team team;
 }
+

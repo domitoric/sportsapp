@@ -2,6 +2,7 @@ package com.example.sportsapp.service;
 
 import com.example.sportsapp.dto.TeamDto;
 import com.example.sportsapp.dto.TeamStatsDto;
+import com.example.sportsapp.entity.AppUser;
 import com.example.sportsapp.entity.Match;
 import com.example.sportsapp.entity.Player;
 import com.example.sportsapp.entity.Team;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Обробляє CRUD-операції над командами, стан відстеження та агреговану статистику команд.
+ * Handles team CRUD operations, tracking state, and aggregated team statistics.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,12 +33,15 @@ public class TeamService {
     private final StatisticsService statisticsService;
     private final EntityMapper entityMapper;
     private final SeasonService seasonService;
+    private final CurrentUserService currentUserService;
 
     /**
-     * Створює локальну команду, яку користувач додає вручну через REST API.
+     * Creates a local team that the user adds manually through the REST API.
      */
     public TeamDto create(TeamDto dto) {
+        AppUser owner = currentUserService.getCurrentUser();
         Team team = Team.builder()
+                .owner(owner)
                 .externalTeamId(dto.getId())
                 .externalLeagueId(null)
                 .name(dto.getName())
@@ -50,15 +54,17 @@ public class TeamService {
     }
 
     /**
-     * Повертає всі відстежувані команди.
+     * Returns all tracked teams.
      */
     @Transactional(readOnly = true)
     public List<TeamDto> getAll() {
-        return teamRepository.findByTrackedTrueOrderByNameAsc().stream().map(entityMapper::toTeamDto).toList();
+        return teamRepository.findByTrackedTrueAndOwner_IdOrderByNameAsc(currentUserService.getCurrentUserId()).stream()
+                .map(entityMapper::toTeamDto)
+                .toList();
     }
 
     /**
-     * Повертає одну команду за локальним ідентифікатором.
+     * Returns a single team by local id.
      */
     @Transactional(readOnly = true)
     public TeamDto getById(Long id) {
@@ -66,7 +72,7 @@ public class TeamService {
     }
 
     /**
-     * Оновлює базові дані локальної команди.
+     * Updates the core data of a local team.
      */
     public TeamDto update(Long id, TeamDto dto) {
         Team team = findEntity(id);
@@ -75,10 +81,11 @@ public class TeamService {
     }
 
     /**
-     * Видаляє локальну команду або знімає зовнішню команду з відстеження.
+     * Deletes a local team or removes an external team from tracking.
      */
     public void delete(Long id) {
         Team team = findEntity(id);
+        Long ownerId = currentUserService.getCurrentUserId();
         Map<Long, Integer> preservedExternalGoals = snapshotExternalPlayerGoalsExcludingTeam(id);
         if (team.getExternalTeamId() != null) {
             playerRepository.deleteByTeam_Id(id);
@@ -91,9 +98,7 @@ public class TeamService {
             restoreExternalPlayerGoals(preservedExternalGoals);
             return;
         }
-        List<Match> affectedMatches = matchRepository.findAll().stream()
-                .filter(match -> match.getHomeTeam().getId().equals(id) || match.getAwayTeam().getId().equals(id))
-                .toList();
+        List<Match> affectedMatches = matchRepository.findAllByTeamIdAndOwnerId(id, ownerId);
         if (!affectedMatches.isEmpty()) {
             matchRepository.deleteAll(affectedMatches);
         }
@@ -104,12 +109,12 @@ public class TeamService {
     }
 
     /**
-     * Розраховує статистику конкретної команди за поточний релевантний рік.
+     * Calculates statistics for a specific team for the current relevant year.
      */
     @Transactional(readOnly = true)
     public TeamStatsDto getStats(Long id) {
         Team team = findEntity(id);
-        List<Match> matches = matchRepository.findAll();
+        List<Match> matches = matchRepository.findAllByOwner_IdOrderByDateDesc(currentUserService.getCurrentUserId());
         int relevantYear = seasonService.relevantYear();
         int matchesPlayed = 0;
         int goalsScored = 0;
@@ -134,29 +139,33 @@ public class TeamService {
     }
 
     /**
-     * Повертає сутність команди або кидає виняток, якщо її не знайдено.
+     * Returns the team entity or throws if it is not found.
      */
     @Transactional(readOnly = true)
     public Team findEntity(Long id) {
-        return teamRepository.findById(id)
+        return teamRepository.findByIdAndOwner_Id(id, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new EntityNotFoundException("Team not found: " + id));
     }
 
     /**
-     * Шукає команду за назвою або створює локального суперника без tracking.
+     * Finds a team by name or creates a local opponent without tracking.
      */
     public Team findOrCreateByName(String name) {
-        return teamRepository.findByNameIgnoreCase(name)
+        Long ownerId = currentUserService.getCurrentUserId();
+        AppUser owner = currentUserService.getCurrentUser();
+        return teamRepository.findByNameIgnoreCaseAndOwner_Id(name, ownerId)
                 .orElseGet(() -> teamRepository.save(Team.builder()
+                        .owner(owner)
                         .name(name)
                         .tracked(false)
                         .wins(0)
+                        .draws(0)
                         .losses(0)
                         .build()));
     }
 
     /**
-     * Повертає канонічний локальний запис команди за її зовнішнім ідентифікатором.
+     * Returns the canonical local team record for an external team id.
      */
     @Transactional(readOnly = true)
     public Optional<Team> findByExternalTeamId(Long externalTeamId) {
@@ -164,14 +173,16 @@ public class TeamService {
     }
 
     /**
-     * Створює або оновлює tracked-команду, імпортовану із зовнішнього API.
+     * Creates or updates a tracked team imported from the external API.
      */
     public Team saveTrackedTeam(Long externalTeamId, Long externalLeagueId, String name) {
         if (externalTeamId == null) {
             throw new IllegalArgumentException("External team id is required");
         }
+        AppUser owner = currentUserService.getCurrentUser();
         Team team = findCanonicalByExternalTeamId(externalTeamId)
                 .orElseGet(() -> Team.builder()
+                        .owner(owner)
                         .externalTeamId(externalTeamId)
                         .tracked(true)
                         .wins(0)
@@ -187,11 +198,13 @@ public class TeamService {
     }
 
     /**
-     * Створює або оновлює суперника, який потрібен лише для збережених матчів.
+     * Creates or updates an opponent record that exists only for stored matches.
      */
     public Team saveUntrackedOpponent(Long externalTeamId, String name) {
+        AppUser owner = currentUserService.getCurrentUser();
         Team team = findCanonicalByExternalTeamId(externalTeamId)
                 .orElseGet(() -> Team.builder()
+                        .owner(owner)
                         .externalTeamId(externalTeamId)
                         .tracked(false)
                         .wins(0)
@@ -203,24 +216,24 @@ public class TeamService {
     }
 
     /**
-     * Обирає основний запис серед можливих дублікатів однієї зовнішньої команди.
+     * Chooses the primary record among possible duplicates of the same external team.
      */
     private Optional<Team> findCanonicalByExternalTeamId(Long externalTeamId) {
         if (externalTeamId == null) {
             return Optional.empty();
         }
-        return teamRepository.findAllByExternalTeamId(externalTeamId).stream()
+        return teamRepository.findAllByExternalTeamIdAndOwner_Id(externalTeamId, currentUserService.getCurrentUserId()).stream()
                 .sorted(Comparator.comparing(Team::isTracked).reversed()
                 .thenComparing(Team::getId))
                 .findFirst();
     }
 
     /**
-     * Зберігає голи зовнішніх гравців інших команд перед видаленням поточної команди.
+     * Preserves external player goals for other teams before deleting the current team.
      */
     private Map<Long, Integer> snapshotExternalPlayerGoalsExcludingTeam(Long teamId) {
         Map<Long, Integer> goalsByPlayerId = new HashMap<>();
-        playerRepository.findByExternalPlayerIdIsNotNullOrderByNameAsc().stream()
+        playerRepository.findByExternalPlayerIdIsNotNullAndOwner_IdOrderByNameAsc(currentUserService.getCurrentUserId()).stream()
                 .filter(player -> player.getTeam() != null)
                 .filter(player -> !player.getTeam().getId().equals(teamId))
                 .forEach(player -> goalsByPlayerId.put(player.getId(), player.getGoals()));
@@ -228,7 +241,7 @@ public class TeamService {
     }
 
     /**
-     * Відновлює голи зовнішніх гравців після перерахунку статистики.
+     * Restores external player goals after statistics recalculation.
      */
     private void restoreExternalPlayerGoals(Map<Long, Integer> goalsByPlayerId) {
         if (goalsByPlayerId.isEmpty()) {
@@ -241,3 +254,4 @@ public class TeamService {
         playerRepository.saveAll(playersToRestore);
     }
 }
+

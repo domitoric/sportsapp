@@ -15,9 +15,12 @@
         }
         body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at top, #fffdf8, var(--bg)); color: var(--text); }
         .container { max-width: 1200px; margin: 0 auto; padding: 32px 16px 48px; }
-        .nav { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+        .nav { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: center; }
         .nav a { text-decoration: none; color: var(--accent); font-weight: 700; padding: 10px 14px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); }
         .nav a.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .nav-spacer { flex: 1 1 auto; }
+        .nav-user { color: var(--muted); font-size: 14px; }
+        .nav form { margin: 0; }
         .card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 20px; margin-top: 20px; box-shadow: 0 10px 30px rgba(30, 42, 47, 0.08); }
         .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
         .inline-form { display: inline-flex; }
@@ -39,6 +42,11 @@
         <a href="/teams" th:classappend="${activePage == 'teams'} ? 'active'">Teams</a>
         <a href="/players/top" th:classappend="${activePage == 'players'} ? 'active'">Players</a>
         <a href="/matches" th:classappend="${activePage == 'matches'} ? 'active'">Matches</a>
+        <span class="nav-spacer"></span>
+        <span class="nav-user" th:text="${currentUsername}"></span>
+        <form method="post" action="/logout">
+            <button type="submit">Logout</button>
+        </form>
     </nav>
 
     <div class="card">

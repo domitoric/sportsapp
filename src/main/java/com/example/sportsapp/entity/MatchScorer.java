@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Вбудований запис про автора голів, що зберігається всередині матчу.
+ * Embedded scorer record stored inside a match.
  */
 @Embeddable
 @Getter
@@ -22,3 +22,4 @@ public class MatchScorer {
 
     private int goals;
 }
+

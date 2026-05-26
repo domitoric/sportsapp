@@ -13,13 +13,13 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * Перетворює JPA-сутності на DTO, які використовуються контролерами та представленнями.
+ * Maps JPA entities to DTOs used by controllers and views.
  */
 @Component
 public class EntityMapper {
 
     /**
-     * Перетворює сутність команди у DTO для REST-відповідей і шаблонів.
+     * Maps a team entity to a DTO for REST responses and templates.
      */
     public TeamDto toTeamDto(Team team) {
         return TeamDto.builder()
@@ -32,7 +32,7 @@ public class EntityMapper {
     }
 
     /**
-     * Перетворює сутність гравця у DTO разом із назвою його команди.
+     * Maps a player entity to a DTO together with the team name.
      */
     public PlayerDto toPlayerDto(Player player) {
         return PlayerDto.builder()
@@ -46,7 +46,7 @@ public class EntityMapper {
     }
 
     /**
-     * Перетворює сутність матчу у DTO разом зі списком авторів голів.
+     * Maps a match entity to a DTO together with its scorer list.
      */
     public MatchDto toMatchDto(Match match, List<MatchScorerDto> scorers) {
         return MatchDto.builder()
@@ -63,7 +63,7 @@ public class EntityMapper {
     }
 
     /**
-     * Перетворює внутрішній запис про автора голів у DTO для відповіді.
+     * Maps an internal scorer record to a response DTO.
      */
     public MatchScorerDto toMatchScorerDto(MatchScorer scorer, String playerName) {
         return MatchScorerDto.builder()
@@ -74,7 +74,7 @@ public class EntityMapper {
     }
 
     /**
-     * Формує DTO статистики команди на основі збережених агрегатів і розрахункових значень.
+     * Builds a team statistics DTO from stored aggregates and calculated values.
      */
     public TeamStatsDto toTeamStatsDto(Team team, int matchesPlayed, int goalsScored, int goalsConceded) {
         return TeamStatsDto.builder()
@@ -89,3 +89,4 @@ public class EntityMapper {
                 .build();
     }
 }
+

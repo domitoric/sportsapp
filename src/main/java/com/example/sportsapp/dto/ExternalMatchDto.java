@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * DTO для десеріалізації сирих даних матчу із зовнішнього джерела.
+ * DTO used to deserialize raw match data from an external source.
  */
 @Getter
 @Setter
@@ -19,7 +19,7 @@ public class ExternalMatchDto {
     private List<ExternalMatchItem> matches = new ArrayList<>();
 
     /**
-     * Елемент сирої відповіді із зовнішнього API матчів.
+     * Single item from the raw external matches response.
      */
     @Getter
     @Setter

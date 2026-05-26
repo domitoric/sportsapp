@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO для відображення ліги, завантаженої із зовнішнього API.
+ * DTO used to display a league loaded from the external API.
  */
 @Getter
 @Setter
@@ -21,3 +21,4 @@ public class AvailableLeagueDto {
     private String name;
     private String sport;
 }
+

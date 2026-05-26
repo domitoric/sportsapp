@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * MVC-контролер, який віддає Thymeleaf-сторінки та обробляє форми.
+ * MVC controller that renders Thymeleaf pages and handles HTML forms.
  */
 @Controller
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class ViewController {
     private final SeasonService seasonService;
 
     /**
-     * Відображає головну сторінку з коротким зведенням локальних даних.
+     * Renders the dashboard page with a short summary of local data.
      */
     @GetMapping("/")
     public String home(@RequestParam(name = "sync", defaultValue = "") String sync, Model model) {
@@ -48,13 +48,15 @@ public class ViewController {
     }
 
     /**
-     * Відображає сторінку команд і, за потреби, список команд обраної ліги.
+     * Renders the teams page and, when requested, the list of teams for the selected league.
      */
     @GetMapping(value = "/teams", produces = "text/html")
-    public String teams(@RequestParam(name = "league", defaultValue = "") String league, Model model) {
+    public String teams(@RequestParam(name = "league", defaultValue = "") String league,
+                        @RequestParam(name = "sync", defaultValue = "") String sync,
+                        Model model) {
         model.addAttribute("activePage", "teams");
         model.addAttribute("currentYear", matchService.getDisplayedYear());
-        model.addAttribute("syncStatus", "");
+        model.addAttribute("syncStatus", sync);
         model.addAttribute("teams", teamService.getAll());
         model.addAttribute("availableLeagues", externalMatchParserService.fetchAvailableLeagues());
         model.addAttribute("availableTeams",
@@ -68,7 +70,7 @@ public class ViewController {
     }
 
     /**
-     * Відображає сторінку гравців і список доступних зовнішніх гравців для tracked teams.
+     * Renders the players page and the list of available external players for tracked teams.
      */
     @GetMapping(value = "/players/top", produces = "text/html")
     public String topPlayers(@RequestParam(name = "sync", defaultValue = "") String sync, Model model) {
@@ -84,7 +86,7 @@ public class ViewController {
     }
 
     /**
-     * Відображає сторінку матчів для вже відстежуваних команд.
+     * Renders the matches page for already tracked teams.
      */
     @GetMapping(value = "/matches", produces = "text/html")
     public String matches(@RequestParam(name = "sync", defaultValue = "") String sync, Model model) {
@@ -96,7 +98,7 @@ public class ViewController {
     }
 
     /**
-     * Додає зовнішню команду до локального списку відстеження через форму.
+     * Adds an external team to the local tracked list through the HTML form.
      */
     @PostMapping(value = "/teams", consumes = "application/x-www-form-urlencoded")
     public String trackTeam(@ModelAttribute("trackTeamForm") TrackTeamRequest request) {
@@ -112,7 +114,7 @@ public class ViewController {
     }
 
     /**
-     * Видаляє або знімає команду з відстеження через HTML-форму.
+     * Deletes a team or removes it from tracking through the HTML form.
      */
     @PostMapping(value = "/teams/{id}/delete", consumes = "application/x-www-form-urlencoded")
     public String deleteTeam(@PathVariable Long id,
@@ -125,7 +127,7 @@ public class ViewController {
     }
 
     /**
-     * Додає зовнішнього гравця до локального списку відстеження.
+     * Adds an external player to the local tracked list.
      */
     @PostMapping(value = "/players", consumes = "application/x-www-form-urlencoded")
     public String trackPlayer(@ModelAttribute("trackPlayerForm") TrackPlayerRequest request) {
@@ -143,7 +145,7 @@ public class ViewController {
     }
 
     /**
-     * Видаляє гравця через HTML-інтерфейс.
+     * Deletes a player through the HTML interface.
      */
     @PostMapping(value = "/players/{id}/delete", consumes = "application/x-www-form-urlencoded")
     public String deletePlayer(@PathVariable Long id) {
@@ -152,7 +154,7 @@ public class ViewController {
     }
 
     /**
-     * Підтримує окремий маршрут для синхронізації матчів зі сторінки матчів.
+     * Provides a dedicated route for syncing matches from the matches page.
      */
     @PostMapping(value = "/matches/sync", consumes = "application/x-www-form-urlencoded")
     public String syncMatches() {
@@ -160,31 +162,39 @@ public class ViewController {
     }
 
     /**
-     * Виконує повну або часткову синхронізацію залежно від сторінки та переданого scope.
+     * Runs a full or partial sync depending on the page and the requested scope.
      */
     @PostMapping(value = "/sync-data", consumes = "application/x-www-form-urlencoded")
     public String syncData(@RequestParam(name = "redirectTo", defaultValue = "/") String redirectTo,
-                           @RequestParam(name = "scope", defaultValue = "") String scope) {
-        return syncDatabase(redirectTo, scope);
+                           @RequestParam(name = "scope", defaultValue = "") String scope,
+                           @RequestParam(name = "league", defaultValue = "") String league) {
+        return syncDatabase(redirectTo, scope, league);
     }
 
     /**
-     * Скорочений варіант виклику синхронізації з автоматичним визначенням scope.
+     * Shortcut sync entry point with automatic scope resolution.
      */
     private String syncDatabase(String redirectTo) {
-        return syncDatabase(redirectTo, "");
+        return syncDatabase(redirectTo, "", "");
     }
 
     /**
-     * Синхронізує потрібний тип даних і повертає користувача назад на поточну сторінку.
+     * Syncs the requested data type and redirects the user back to the current page.
      */
     private String syncDatabase(String redirectTo, String scope) {
+        return syncDatabase(redirectTo, scope, "");
+    }
+
+    private String syncDatabase(String redirectTo, String scope, String league) {
         String safeRedirect = switch (redirectTo) {
             case "/matches" -> "/matches";
             case "/players/top" -> "/players/top";
             case "/teams" -> "/teams";
             default -> "/";
         };
+        String redirectSuffix = safeRedirect.equals("/teams") && league != null && !league.isBlank()
+                ? "?league=" + league.trim().replace(" ", "%20")
+                : "";
         // Each page syncs only the data it actually shows to reduce API usage.
         String effectiveScope = scope == null || scope.isBlank()
                 ? switch (safeRedirect) {
@@ -196,7 +206,10 @@ public class ViewController {
                 : scope;
         try {
             switch (effectiveScope) {
-                case "teams" -> externalMatchParserService.syncTrackedTeams();
+                case "teams" -> {
+                    externalMatchParserService.syncTrackedTeams();
+                    externalMatchParserService.importMatches();
+                }
                 case "players" -> externalMatchParserService.syncTrackedPlayers();
                 case "matches" -> externalMatchParserService.importMatches();
                 default -> {
@@ -204,9 +217,10 @@ public class ViewController {
                     externalMatchParserService.importMatches();
                 }
             }
-            return "redirect:" + safeRedirect + "?sync=ok";
+            return "redirect:" + safeRedirect + redirectSuffix + (redirectSuffix.isBlank() ? "?sync=ok" : "&sync=ok");
         } catch (Exception exception) {
-            return "redirect:" + safeRedirect + "?sync=error";
+            return "redirect:" + safeRedirect + redirectSuffix + (redirectSuffix.isBlank() ? "?sync=error" : "&sync=error");
         }
     }
 }
+

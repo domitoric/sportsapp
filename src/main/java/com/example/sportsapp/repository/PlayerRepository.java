@@ -6,19 +6,22 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * Репозиторій для збереження гравців і типових запитів до таблиці бомбардирів.
+ * Repository for storing players and common top-scorer queries.
  */
 public interface PlayerRepository extends JpaRepository<Player, Long> {
 
-    List<Player> findTop10ByOrderByGoalsDescNameAsc();
+    Optional<Player> findByIdAndOwner_Id(Long id, Long ownerId);
 
-    List<Player> findAllByOrderByNameAsc();
+    List<Player> findTop10ByOwner_IdOrderByGoalsDescNameAsc(Long ownerId);
 
-    List<Player> findByTeam_IdOrderByNameAsc(Long teamId);
+    List<Player> findAllByOwner_IdOrderByNameAsc(Long ownerId);
+
+    List<Player> findByTeam_IdAndOwner_IdOrderByNameAsc(Long teamId, Long ownerId);
 
     void deleteByTeam_Id(Long teamId);
 
-    Optional<Player> findByExternalPlayerId(Long externalPlayerId);
+    Optional<Player> findByExternalPlayerIdAndOwner_Id(Long externalPlayerId, Long ownerId);
 
-    List<Player> findByExternalPlayerIdIsNotNullOrderByNameAsc();
+    List<Player> findByExternalPlayerIdIsNotNullAndOwner_IdOrderByNameAsc(Long ownerId);
 }
+

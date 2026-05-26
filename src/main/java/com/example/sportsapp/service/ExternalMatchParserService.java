@@ -5,6 +5,7 @@ import com.example.sportsapp.dto.AvailablePlayerDto;
 import com.example.sportsapp.dto.AvailableTeamDto;
 import com.example.sportsapp.dto.MatchDto;
 import com.example.sportsapp.dto.PlayerDto;
+import com.example.sportsapp.entity.AppUser;
 import com.example.sportsapp.entity.LeagueCache;
 import com.example.sportsapp.entity.Match;
 import com.example.sportsapp.entity.Player;
@@ -34,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 /**
- * Інтегрує застосунок із зовнішнім футбольним API та імпортує його дані.
+ * Integrates the application with the external football API and imports its data.
  */
 @Service
 @RequiredArgsConstructor
@@ -48,13 +49,14 @@ public class ExternalMatchParserService {
     private final StatisticsService statisticsService;
     private final ObjectMapper objectMapper;
     private final SeasonService seasonService;
+    private final CurrentUserService currentUserService;
 
     @Value("${football.api.season}")
     private int season;
 
     /**
-     * Повертає список доступних ліг.
-     * Спочатку читає локальний кеш із БД, а якщо він порожній, звертається до зовнішнього API.
+     * Returns the list of available leagues.
+     * Reads the local database cache first and falls back to the external API when the cache is empty.
      */
     @Transactional
     public List<AvailableLeagueDto> fetchAvailableLeagues() {
@@ -110,7 +112,7 @@ public class ExternalMatchParserService {
     }
 
     /**
-     * Завантажує список команд обраної ліги із зовнішнього API.
+     * Loads the team list for the selected league from the external API.
      */
     @Transactional(readOnly = true)
     public List<AvailableTeamDto> fetchAvailableTeams(String leagueIdValue) {
@@ -147,7 +149,7 @@ public class ExternalMatchParserService {
     }
 
     /**
-     * Додає зовнішню команду до локального списку відстеження.
+     * Adds an external team to the local tracked list.
      */
     @Transactional
     public Team trackTeam(Long externalTeamId, Long externalLeagueId, String teamName) {
@@ -172,7 +174,7 @@ public class ExternalMatchParserService {
     }
 
     /**
-     * Оновлює метадані вже відстежуваних команд без імпорту матчів.
+     * Refreshes metadata for already tracked teams without importing matches.
      */
     public void syncTrackedTeams() {
         trackedTeams().forEach(trackedTeam -> {
@@ -188,7 +190,7 @@ public class ExternalMatchParserService {
     }
 
     /**
-     * Формує список доступних зовнішніх гравців для всіх tracked teams.
+     * Builds the list of available external players for all tracked teams.
      */
     @Transactional(readOnly = true)
     public List<AvailablePlayerDto> fetchAvailablePlayersForTrackedTeams() {
@@ -206,12 +208,12 @@ public class ExternalMatchParserService {
     }
 
     /**
-     * Повертає локально збережені матчі для tracked teams за поточний рік.
+     * Returns locally stored matches for tracked teams in the current year.
      */
     @Transactional(readOnly = true)
     public List<MatchDto> fetchMatches() {
         int currentYear = seasonService.currentYear();
-        return matchRepository.findAllByOrderByDateDesc().stream()
+        return matchRepository.findAllByOwner_IdOrderByDateDesc(currentUserService.getCurrentUserId()).stream()
                 .filter(match -> match.getHomeTeam().isTracked() || match.getAwayTeam().isTracked())
                 .filter(match -> match.getDate() != null && match.getDate().getYear() == currentYear)
                 .map(match -> MatchDto.builder()
@@ -229,7 +231,7 @@ public class ExternalMatchParserService {
     }
 
     /**
-     * Імпортує матчі для відстежуваних команд, оновлює статистику і голи зовнішніх гравців.
+     * Imports matches for tracked teams and updates team stats and external player goals.
      */
     public List<MatchDto> importMatches() {
         List<Team> trackedTeams = trackedTeams();
@@ -277,19 +279,23 @@ public class ExternalMatchParserService {
         }
 
         statisticsService.recalculateStatistics();
-        syncTrackedPlayerGoals(existingExternalPlayerGoals);
+        syncTrackedPlayerGoals(existingExternalPlayerGoals, false);
         return fetchMatches();
     }
 
     /**
-     * Оновлює голи вже відстежуваних зовнішніх гравців без повторного імпорту матчів.
+     * Updates goals for already tracked external players without re-importing matches.
      */
     public void syncTrackedPlayers() {
-        syncTrackedPlayerGoals(snapshotExternalPlayerGoals());
+        // For the players page, we must propagate API limit failures so the UI can show sync=error.
+        boolean allRequestsSucceeded = syncTrackedPlayerGoals(snapshotExternalPlayerGoals(), true);
+        if (!allRequestsSucceeded) {
+            throw new IllegalStateException("Failed to refresh player goals from external API");
+        }
     }
 
     /**
-     * Додає зовнішнього гравця до локального списку і одразу синхронізує його голи.
+     * Adds an external player to the local list and immediately syncs that player's goals.
      */
     @Transactional
     public Optional<PlayerDto> trackPlayer(Long externalPlayerId) {
@@ -349,6 +355,7 @@ public class ExternalMatchParserService {
                 .filter(team -> team.getExternalTeamId() != null)
                 .sorted(Comparator.comparing(Team::getName, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(Team::getId))
+                // The same external team id can be stored more than once, so we deduplicate it.
                 .filter(team -> uniqueByExternalId.putIfAbsent(team.getExternalTeamId(), team) == null)
                 .toList();
     }
@@ -409,9 +416,16 @@ public class ExternalMatchParserService {
             return;
         }
 
-        Match match = matchRepository.findByDateAndHomeTeam_IdAndAwayTeam_Id(matchDate, homeTeam.getId(), awayTeam.getId())
+        AppUser owner = currentUserService.getCurrentUser();
+        Match match = matchRepository.findByDateAndHomeTeam_IdAndAwayTeam_IdAndOwner_Id(
+                        matchDate,
+                        homeTeam.getId(),
+                        awayTeam.getId(),
+                        owner.getId()
+                )
                 .orElseGet(Match::new);
 
+        match.setOwner(owner);
         match.setDate(matchDate);
         match.setHomeTeam(homeTeam);
         match.setAwayTeam(awayTeam);
@@ -519,28 +533,36 @@ public class ExternalMatchParserService {
         return node.asInt(0);
     }
 
-    private void syncTrackedPlayerGoals(Map<Long, Integer> existingExternalPlayerGoals) {
-        playerService.getTrackedExternalPlayers().forEach(player ->
-                syncPlayerGoals(
-                        player.getId(),
-                        player.getTeam().getId(),
-                        player.getExternalPlayerId(),
-                        existingExternalPlayerGoals.get(player.getId())
-                ));
+    private boolean syncTrackedPlayerGoals(Map<Long, Integer> existingExternalPlayerGoals, boolean detectFailures) {
+        boolean allRequestsSucceeded = true;
+        for (Player player : playerService.getTrackedExternalPlayers()) {
+            boolean playerSyncSucceeded = syncPlayerGoals(
+                    player.getId(),
+                    player.getTeam().getId(),
+                    player.getExternalPlayerId(),
+                    existingExternalPlayerGoals.get(player.getId())
+            );
+            if (detectFailures && !playerSyncSucceeded) {
+                allRequestsSucceeded = false;
+            }
+        }
+        return allRequestsSucceeded;
     }
 
-    private void syncPlayerGoals(Long playerId, Long teamId, Long externalPlayerId, Integer fallbackGoals) {
+    private boolean syncPlayerGoals(Long playerId, Long teamId, Long externalPlayerId, Integer fallbackGoals) {
         if (playerId == null || teamId == null || externalPlayerId == null) {
-            return;
+            return true;
         }
         try {
             Integer goals = fetchPlayerGoalsForCurrentYear(externalPlayerId);
             playerService.updateGoals(playerId, goals != null ? goals : fallbackGoals == null ? 0 : fallbackGoals);
+            return true;
         } catch (Exception exception) {
-            // Leave the last persisted value in place when the external API is unavailable.
+            // When the API limit is hit or a request fails, keep the previous stored value instead of overwriting stats with zero.
             if (fallbackGoals != null) {
                 playerService.updateGoals(playerId, fallbackGoals);
             }
+            return false;
         }
     }
 
@@ -613,3 +635,4 @@ public class ExternalMatchParserService {
         }
     }
 }
+

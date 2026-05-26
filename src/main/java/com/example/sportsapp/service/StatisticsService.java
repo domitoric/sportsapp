@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Повністю перебудовує статистику команд і гравців на основі збережених матчів.
+ * Fully rebuilds team and player statistics from stored matches.
  */
 @Service
 @RequiredArgsConstructor
@@ -25,28 +25,38 @@ public class StatisticsService {
     private final TeamRepository teamRepository;
     private final PlayerRepository playerRepository;
     private final SeasonService seasonService;
+    private final CurrentUserService currentUserService;
 
     /**
-     * Повністю перебудовує статистику команд і локальних гравців за збереженими матчами.
+     * Fully rebuilds team and local player statistics from stored matches.
      */
     @Transactional
     public void recalculateStatistics() {
-        // Team aggregates are rebuilt from persisted matches instead of updated incrementally.
-        List<Team> teams = teamRepository.findAll();
+        Long ownerId = currentUserService.getCurrentUserId();
+        List<Team> teams = teamRepository.findAllByOwner_IdOrderByNameAsc(ownerId);
+        List<Player> players = playerRepository.findAllByOwner_IdOrderByNameAsc(ownerId);
+        List<Match> matches = matchRepository.findAllByOwner_IdOrderByDateDesc(ownerId);
+        recalculateStatistics(teams, players, matches);
+    }
+
+    @Transactional
+    public void recalculateAllStatistics() {
+        recalculateStatistics(teamRepository.findAll(), playerRepository.findAll(), matchRepository.findAll());
+    }
+
+    private void recalculateStatistics(List<Team> teams, List<Player> players, List<Match> matches) {
         for (Team team : teams) {
             team.setWins(0);
             team.setDraws(0);
             team.setLosses(0);
         }
 
-        List<Player> players = playerRepository.findAll();
         Map<Long, Player> playersById = new HashMap<>();
         for (Player player : players) {
             player.setGoals(0);
             playersById.put(player.getId(), player);
         }
 
-        List<Match> matches = matchRepository.findAll();
         int relevantYear = seasonService.relevantYear();
         for (Match match : matches) {
             if (match.getDate() == null
@@ -77,3 +87,4 @@ public class StatisticsService {
         playerRepository.saveAll(players);
     }
 }
+

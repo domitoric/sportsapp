@@ -4,11 +4,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Головна точка входу в застосунок спортивного трекера.
+ * Main entry point for the sports tracker application.
  */
 @SpringBootApplication
 public class SportsappApplication {
 
+    /**
+     * Boots the Spring application context and starts the embedded web server.
+     */
     public static void main(String[] args) {
         SpringApplication.run(SportsappApplication.class, args);
     }

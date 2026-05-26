@@ -5,9 +5,10 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * Репозиторій для кешованих довідкових даних про ліги.
+ * Repository for cached league reference data.
  */
 public interface LeagueCacheRepository extends JpaRepository<LeagueCache, Long> {
 
     List<LeagueCache> findAllByOrderByNameAsc();
 }
+

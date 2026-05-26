@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO форми для додавання зовнішньої команди до локального відстеження.
+ * Form DTO for adding an external team to local tracking.
  */
 @Getter
 @Setter
@@ -26,3 +26,4 @@ public class TrackTeamRequest {
 
     private String leagueName;
 }
+

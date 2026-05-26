@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO, що містить обчислену статистику для відстежуваної команди.
+ * DTO that contains calculated statistics for a tracked team.
  */
 @Getter
 @Setter
@@ -25,3 +25,4 @@ public class TeamStatsDto {
     private int goalsScored;
     private int goalsConceded;
 }
+

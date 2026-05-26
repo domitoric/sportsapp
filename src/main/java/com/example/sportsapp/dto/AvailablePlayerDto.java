@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO для відображення зовнішнього гравця, якого можна додати до відстеження.
+ * DTO used to display an external player that can be added to tracking.
  */
 @Getter
 @Setter
@@ -22,3 +22,4 @@ public class AvailablePlayerDto {
     private Long teamId;
     private String teamName;
 }
+

@@ -7,11 +7,14 @@ import org.springframework.http.codec.ClientCodecConfigurer;
 import org.springframework.web.reactive.function.client.WebClient;
 
 /**
- * Налаштовує WebClient для звернення до зовнішнього футбольного API.
+ * Configures the WebClient used to call the external football API.
  */
 @Configuration
 public class WebClientConfig {
 
+    /**
+     * Creates the WebClient used for all outbound calls to the external football API.
+     */
     @Bean
     public WebClient footballWebClient(
             WebClient.Builder builder,
@@ -30,6 +33,9 @@ public class WebClientConfig {
         return configured.build();
     }
 
+    /**
+     * Raises the in-memory buffer so larger API payloads can be decoded safely.
+     */
     private void configureCodecs(ClientCodecConfigurer codecs) {
         codecs.defaultCodecs().maxInMemorySize(4 * 1024 * 1024);
     }

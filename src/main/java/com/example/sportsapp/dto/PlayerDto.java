@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO для передачі даних гравця між шарами застосунку.
+ * DTO for transferring player data between application layers.
  */
 @Getter
 @Setter
@@ -33,3 +33,4 @@ public class PlayerDto {
 
     private String teamName;
 }
+

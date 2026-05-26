@@ -10,8 +10,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.sportsapp.dto.AvailableLeagueDto;
 import com.example.sportsapp.dto.AvailablePlayerDto;
 import com.example.sportsapp.dto.TeamStatsDto;
+import com.example.sportsapp.entity.AppUser;
 import com.example.sportsapp.entity.Player;
 import com.example.sportsapp.entity.Team;
+import com.example.sportsapp.repository.AppUserRepository;
 import com.example.sportsapp.repository.LeagueCacheRepository;
 import com.example.sportsapp.repository.MatchRepository;
 import com.example.sportsapp.repository.PlayerRepository;
@@ -37,14 +39,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(username = "tester")
 /**
- * Інтеграційні тести сценаріїв роботи із зовнішнім футбольним API через MockWebServer.
+ * Integration tests for external football API flows using MockWebServer.
  */
 class SportsDbIntegrationTests {
 
@@ -68,6 +72,9 @@ class SportsDbIntegrationTests {
     private MatchRepository matchRepository;
 
     @Autowired
+    private AppUserRepository appUserRepository;
+
+    @Autowired
     private PlayerRepository playerRepository;
 
     @Autowired
@@ -75,6 +82,8 @@ class SportsDbIntegrationTests {
 
     @Autowired
     private LeagueCacheRepository leagueCacheRepository;
+
+    private AppUser testUser;
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -90,6 +99,11 @@ class SportsDbIntegrationTests {
         playerRepository.deleteAll();
         teamRepository.deleteAll();
         leagueCacheRepository.deleteAll();
+        appUserRepository.deleteAll();
+        testUser = appUserRepository.save(AppUser.builder()
+                .username("tester")
+                .passwordHash("hashed")
+                .build());
     }
 
     @AfterAll
@@ -98,7 +112,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє завантаження й алфавітне сортування ліг із зовнішнього API.
+     * Verifies loading and alphabetical sorting of leagues from the external API.
      */
     @Test
     void loadsAllReturnedLeaguesInAlphabeticalOrder() {
@@ -119,7 +133,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє, що список ліг після першого завантаження перевикористовується з локального кешу.
+     * Verifies that the league list is reused from the local cache after the first load.
      */
     @Test
     void reusesCachedLeaguesWithoutCallingApiAgain() {
@@ -142,7 +156,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє додавання команди зі списку зовнішньої ліги та коректний редірект назад.
+     * Verifies adding a team from an external league list and the correct redirect back.
      */
     @Test
     void tracksSelectedTeamFromPostedSelectionAndKeepsLeagueSelectionInRedirect() throws Exception {
@@ -174,7 +188,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє завантаження й сортування доступних гравців для tracked team.
+     * Verifies loading and sorting available players for a tracked team.
      */
     @Test
     void fetchesPlayersForTrackedTeamWithFallbackAndSortsThemAlphabetically() {
@@ -196,7 +210,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє додавання зовнішнього гравця без повторного ручного запиту списку.
+     * Verifies adding an external player without manually requesting the list again.
      */
     @Test
     void addsPlayerByExternalIdWithoutRequiringSecondListReload() throws Exception {
@@ -225,7 +239,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє отримання голів зовнішнього гравця за поточний рік.
+     * Verifies loading current-year goals for an external player.
      */
     @Test
     void trackedPlayerShowsGoalsForCurrentYearFromExternalApi() throws Exception {
@@ -277,12 +291,13 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Регресійний тест: при некоректній відповіді API старе значення голів не повинно затиратися.
+     * Regression test: an invalid API response must not overwrite the previous goal count.
      */
     @Test
     void syncKeepsPreviousPlayerGoalsWhenApiReturnsNoUsableGoalData() throws Exception {
         Team trackedTeam = teamService.saveTrackedTeam(57L, 2021L, "Arsenal FC");
         Player player = playerRepository.save(Player.builder()
+                .owner(testUser)
                 .externalPlayerId(7788L)
                 .name("Bukayo Saka")
                 .position("Attacker")
@@ -327,7 +342,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє імпорт матчів і оновлення статистики tracked-команди тільки за поточний рік.
+     * Verifies match import and tracked-team statistics updates only for the current year.
      */
     @Test
     void syncDataImportsMatchesAndUpdatesTrackedTeamStatisticsForCurrentYear() throws Exception {
@@ -370,7 +385,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє fallback-зв'язування матчу за назвою команди, якщо external ids не збігаються.
+     * Verifies fallback match linking by team name when external ids do not match.
      */
     @Test
     void syncDataImportsCurrentYearMatchEvenWhenApiTeamIdsDoNotMatchButNamesDo() throws Exception {
@@ -404,7 +419,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє, що матчі попереднього року не показуються після зовнішньої синхронізації.
+     * Verifies that previous-year matches are not shown after external sync.
      */
     @Test
     void syncDataShowsNoMatchesWhenApiReturnsOnlyPreviousYearData() throws Exception {
@@ -439,24 +454,28 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє, що sync не падає при дублях tracked-команд із однаковим external id.
+     * Verifies that sync does not fail when duplicate tracked teams share the same external id.
      */
     @Test
     void syncDataDoesNotFailWhenDuplicateTrackedTeamsExistForSameExternalId() throws Exception {
         teamRepository.save(Team.builder()
+                .owner(testUser)
                 .externalTeamId(57L)
                 .externalLeagueId(2021L)
                 .name("Arsenal FC")
                 .tracked(true)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
         teamRepository.save(Team.builder()
+                .owner(testUser)
                 .externalTeamId(57L)
                 .externalLeagueId(2021L)
                 .name("Arsenal Duplicate")
                 .tracked(true)
                 .wins(0)
+                .draws(0)
                 .losses(0)
                 .build());
 
@@ -499,7 +518,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє, що імпортовані матчі зберігаються після видалення і повторного додавання external team.
+     * Verifies that imported matches remain after deleting and re-adding an external team.
      */
     @Test
     void deletingAndReAddingExternalTeamKeepsImportedMatchesAvailable() throws Exception {
@@ -568,7 +587,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє, що додавання зовнішньої команди працює навіть без доступного імпорту матчів.
+     * Verifies that adding an external team still works when match import is unavailable.
      */
     @Test
     void trackingTeamDoesNotFailEvenIfMatchImportWouldBeUnavailable() {
@@ -581,7 +600,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє імпорт матчів одразу для двох tracked-команд з однієї ліги.
+     * Verifies match import for two tracked teams from the same league at once.
      */
     @Test
     void syncDataImportsMatchesForTwoTrackedTeamsFromSameCompetition() throws Exception {
@@ -621,7 +640,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Перевіряє, що HTML-сторінка гравців показує зовнішній склад tracked teams.
+     * Verifies that the HTML players page shows the external squad for tracked teams.
      */
     @Test
     void rendersPlayersPageWithAvailablePlayersFromTrackedTeams() throws Exception {
@@ -641,7 +660,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Додає моковану JSON-відповідь для конкретного API-шляху.
+     * Adds a mocked JSON response for a specific API path.
      */
     private void mockJson(String path, String body) {
         String normalizedPath = path.startsWith(API_PREFIX) ? path : API_PREFIX + path;
@@ -652,7 +671,7 @@ class SportsDbIntegrationTests {
     }
 
     /**
-     * Підіймає локальний mock-сервер, який імітує відповіді зовнішнього API.
+     * Starts a local mock server that simulates external API responses.
      */
     private static MockWebServer startServer() {
         try {
@@ -679,3 +698,4 @@ class SportsDbIntegrationTests {
         }
     }
 }
+

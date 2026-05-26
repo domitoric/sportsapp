@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST-контролер для CRUD-операцій над матчами.
+ * REST controller for CRUD operations on matches.
  */
 @RestController
 @RequestMapping("/matches")
@@ -30,7 +30,7 @@ public class MatchController {
     private final ExternalMatchParserService externalMatchParserService;
 
     /**
-     * Створює матч і запускає перерахунок статистики.
+     * Creates a match and triggers statistics recalculation.
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
@@ -39,7 +39,7 @@ public class MatchController {
     }
 
     /**
-     * Повертає список матчів за релевантний для інтерфейсу рік.
+     * Returns matches for the year currently shown in the UI.
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public List<MatchDto> getAll() {
@@ -47,7 +47,7 @@ public class MatchController {
     }
 
     /**
-     * Повертає один матч за локальним ідентифікатором.
+     * Returns a single match by local id.
      */
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public MatchDto getById(@PathVariable Long id) {
@@ -55,7 +55,7 @@ public class MatchController {
     }
 
     /**
-     * Оновлює матч та пов'язані з ним дані.
+     * Updates a match and its related data.
      */
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public MatchDto update(@PathVariable Long id, @Valid @RequestBody MatchDto dto) {
@@ -63,7 +63,7 @@ public class MatchController {
     }
 
     /**
-     * Видаляє матч і оновлює статистику команд та гравців.
+     * Deletes a match and refreshes team and player statistics.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -72,7 +72,7 @@ public class MatchController {
     }
 
     /**
-     * Повертає вже імпортовані зовнішні матчі для tracked teams.
+     * Returns already imported external matches for tracked teams.
      */
     @GetMapping(value = "/external", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<MatchDto> fetchExternal() {
@@ -80,7 +80,7 @@ public class MatchController {
     }
 
     /**
-     * Імпортує матчі із зовнішнього API до локальної бази.
+     * Imports matches from the external API into the local database.
      */
     @PostMapping(value = "/external/import", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<MatchDto> importExternal() {

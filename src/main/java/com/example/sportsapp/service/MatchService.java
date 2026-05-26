@@ -2,6 +2,7 @@ package com.example.sportsapp.service;
 
 import com.example.sportsapp.dto.MatchDto;
 import com.example.sportsapp.dto.MatchScorerDto;
+import com.example.sportsapp.entity.AppUser;
 import com.example.sportsapp.entity.Match;
 import com.example.sportsapp.entity.MatchScorer;
 import com.example.sportsapp.entity.Player;
@@ -15,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Обробляє CRUD-операції над матчами та правила валідації.
+ * Handles match CRUD operations and validation rules.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,9 +29,10 @@ public class MatchService {
     private final StatisticsService statisticsService;
     private final EntityMapper entityMapper;
     private final SeasonService seasonService;
+    private final CurrentUserService currentUserService;
 
     /**
-     * Створює матч у локальній базі та запускає перерахунок статистики.
+     * Creates a match in the local database and triggers statistics recalculation.
      */
     public MatchDto create(MatchDto dto) {
         Match saved = matchRepository.save(buildMatch(new Match(), dto));
@@ -39,11 +41,11 @@ public class MatchService {
     }
 
     /**
-     * Повертає всі матчі за рік, який зараз показується в інтерфейсі.
+     * Returns all matches for the year currently shown in the UI.
      */
     @Transactional(readOnly = true)
     public List<MatchDto> getAll() {
-        List<Match> matches = matchRepository.findAllByOrderByDateDesc();
+        List<Match> matches = matchRepository.findAllByOwner_IdOrderByDateDesc(currentUserService.getCurrentUserId());
         int relevantYear = seasonService.relevantYear();
         return matches.stream()
                 .filter(match -> match.getDate() != null && match.getDate().getYear() == relevantYear)
@@ -52,7 +54,7 @@ public class MatchService {
     }
 
     /**
-     * Повертає рік, за який користувач бачить матчі та статистику.
+     * Returns the year for which the user sees matches and statistics.
      */
     @Transactional(readOnly = true)
     public int getDisplayedYear() {
@@ -60,7 +62,7 @@ public class MatchService {
     }
 
     /**
-     * Повертає один матч за локальним ідентифікатором.
+     * Returns a single match by its local id.
      */
     @Transactional(readOnly = true)
     public MatchDto getById(Long id) {
@@ -68,7 +70,7 @@ public class MatchService {
     }
 
     /**
-     * Оновлює матч і повторно обчислює статистику.
+     * Updates a match and recalculates statistics.
      */
     public MatchDto update(Long id, MatchDto dto) {
         Match match = findEntity(id);
@@ -78,7 +80,7 @@ public class MatchService {
     }
 
     /**
-     * Видаляє матч і запускає перерахунок статистики.
+     * Deletes a match and triggers statistics recalculation.
      */
     public void delete(Long id) {
         matchRepository.delete(findEntity(id));
@@ -86,25 +88,27 @@ public class MatchService {
     }
 
     /**
-     * Повертає сутність матчу або кидає виняток, якщо матч не знайдено.
+     * Returns the match entity or throws if the match is not found.
      */
     @Transactional(readOnly = true)
     public Match findEntity(Long id) {
-        return matchRepository.findById(id)
+        return matchRepository.findByIdAndOwner_Id(id, currentUserService.getCurrentUserId())
                 .orElseThrow(() -> new EntityNotFoundException("Match not found: " + id));
     }
 
     /**
-     * Заповнює сутність матчу даними з DTO і перевіряє базові обмеження.
+     * Populates a match entity from a DTO and validates basic constraints.
      */
     private Match buildMatch(Match match, MatchDto dto) {
         List<MatchScorerDto> scorers = dto.getScorers() == null ? List.of() : dto.getScorers();
         Team homeTeam = teamService.findEntity(dto.getHomeTeamId());
         Team awayTeam = teamService.findEntity(dto.getAwayTeamId());
+        AppUser owner = currentUserService.getCurrentUser();
         if (homeTeam.getId().equals(awayTeam.getId())) {
             throw new IllegalArgumentException("Home and away teams must be different");
         }
 
+        match.setOwner(owner);
         match.setDate(dto.getDate());
         match.setHomeTeam(homeTeam);
         match.setAwayTeam(awayTeam);
@@ -117,7 +121,7 @@ public class MatchService {
     }
 
     /**
-     * Перетворює DTO авторів голів у вбудовані записи матчу.
+     * Converts scorer DTOs into embedded match scorer records.
      */
     private List<MatchScorer> mapScorers(List<MatchScorerDto> scorerDtos, Team homeTeam, Team awayTeam) {
         return scorerDtos.stream().map(dto -> {
@@ -134,7 +138,7 @@ public class MatchService {
     }
 
     /**
-     * Перевіряє узгодженість між рахунком матчу та сумою голів авторів.
+     * Validates that the match score matches the total scorer goals.
      */
     private void validateScoreConsistency(Match match) {
         int scorerGoals = match.getScorers().stream().mapToInt(MatchScorer::getGoals).sum();
@@ -145,7 +149,7 @@ public class MatchService {
     }
 
     /**
-     * Перетворює сутність матчу у DTO для REST-відповіді.
+     * Maps a match entity to a DTO for REST responses.
      */
     private MatchDto toDto(Match match) {
         List<MatchScorerDto> scorers = match.getScorers().stream()
@@ -154,3 +158,4 @@ public class MatchService {
         return entityMapper.toMatchDto(match, scorers);
     }
 }
+

@@ -30,8 +30,10 @@
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
+            align-items: center;
             margin-bottom: 20px;
         }
+        .nav-spacer { flex: 1 1 auto; }
         .nav a {
             text-decoration: none;
             color: #0d5c63;
@@ -46,6 +48,11 @@
             color: white;
             border-color: var(--accent);
         }
+        .nav-user {
+            color: var(--muted);
+            font-size: 14px;
+        }
+        .nav form { margin: 0; }
         h1, h2 { margin-top: 0; }
         .hero {
             padding: 24px;
@@ -119,6 +126,11 @@
         <a href="/teams" th:classappend="${activePage == 'teams'} ? 'active'">Teams</a>
         <a href="/players/top" th:classappend="${activePage == 'players'} ? 'active'">Players</a>
         <a href="/matches" th:classappend="${activePage == 'matches'} ? 'active'">Matches</a>
+        <span class="nav-spacer"></span>
+        <span class="nav-user" th:text="${currentUsername}"></span>
+        <form method="post" action="/logout">
+            <button type="submit">Logout</button>
+        </form>
     </nav>
     <section class="hero">
         <div class="toolbar">

@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * DTO для десеріалізації сирих даних каталогу команд із зовнішнього джерела.
+ * DTO used to deserialize the raw team catalog from an external source.
  */
 @Getter
 @Setter
@@ -19,7 +19,7 @@ public class ExternalTeamCatalogDto {
     private List<ExternalTeamItem> teams = new ArrayList<>();
 
     /**
-     * Елемент сирої відповіді із зовнішнього API команд.
+     * Single team item from the raw external team response.
      */
     @Getter
     @Setter

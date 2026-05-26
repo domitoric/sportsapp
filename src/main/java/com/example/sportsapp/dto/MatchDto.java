@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO для передачі даних матчу між контролерами та сервісами.
+ * DTO for transferring match data between controllers and services.
  */
 @Getter
 @Setter
@@ -47,3 +47,4 @@ public class MatchDto {
     @Builder.Default
     private List<MatchScorerDto> scorers = new ArrayList<>();
 }
+

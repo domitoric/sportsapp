@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * DTO, що описує одного автора голів у матчі.
+ * DTO that describes a single scorer in a match.
  */
 @Getter
 @Setter
@@ -26,3 +26,4 @@ public class MatchScorerDto {
     @Min(1)
     private int goals;
 }
+

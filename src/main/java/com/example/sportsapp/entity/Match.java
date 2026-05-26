@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Сутність матчу, що зберігає дату, команди, рахунок і список бомбардирів.
+ * Match entity that stores the date, teams, score, and list of scorers.
  */
 @Entity
 @Table(name = "matches")
@@ -38,6 +38,10 @@ public class Match {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private AppUser owner;
 
     private LocalDate date;
 
@@ -67,3 +71,4 @@ public class Match {
     @CollectionTable(name = "match_scorers", joinColumns = @JoinColumn(name = "match_id"))
     private List<MatchScorer> scorers = new ArrayList<>();
 }
+

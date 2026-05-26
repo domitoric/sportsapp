@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Локальний кеш довідника ліг для зменшення кількості зовнішніх API-запитів.
+ * Local cache of league reference data used to reduce external API calls.
  */
 @Entity
 @Table(name = "league_cache")
@@ -30,3 +30,4 @@ public class LeagueCache {
 
     private String sport;
 }
+

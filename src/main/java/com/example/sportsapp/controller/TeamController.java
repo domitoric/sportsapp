@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST-контролер для CRUD-операцій над командами та отримання статистики.
+ * REST controller for CRUD operations on teams and team statistics.
  */
 @RestController
 @RequestMapping("/teams")
@@ -29,7 +29,7 @@ public class TeamController {
     private final TeamService teamService;
 
     /**
-     * Створює нову локальну команду через REST API.
+     * Creates a new local team via the REST API.
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
@@ -38,7 +38,7 @@ public class TeamController {
     }
 
     /**
-     * Повертає список усіх відстежуваних команд.
+     * Returns all tracked teams.
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public List<TeamDto> getAll() {
@@ -46,7 +46,7 @@ public class TeamController {
     }
 
     /**
-     * Повертає одну команду за її локальним ідентифікатором.
+     * Returns a team by local id.
      */
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public TeamDto getById(@PathVariable Long id) {
@@ -54,7 +54,7 @@ public class TeamController {
     }
 
     /**
-     * Оновлює назву та базові дані команди.
+     * Updates the team name and other basic properties.
      */
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public TeamDto update(@PathVariable Long id, @Valid @RequestBody TeamDto dto) {
@@ -62,7 +62,7 @@ public class TeamController {
     }
 
     /**
-     * Видаляє локальну команду або знімає зовнішню команду з відстеження.
+     * Deletes a local team or untracks an external one.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -71,7 +71,7 @@ public class TeamController {
     }
 
     /**
-     * Повертає розраховану статистику конкретної команди.
+     * Returns calculated statistics for a specific team.
      */
     @GetMapping(value = "/{id}/stats", produces = MediaType.APPLICATION_JSON_VALUE)
     public TeamStatsDto getStats(@PathVariable Long id) {

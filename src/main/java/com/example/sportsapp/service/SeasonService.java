@@ -5,50 +5,51 @@ import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 
 /**
- * Надає допоміжні методи для роботи з поточним сезоном і фільтрації статистики.
+ * Provides helper methods for the current season and statistics filtering.
  */
 @Service
 public class SeasonService {
 
     /**
-     * Повертає поточний календарний рік сервера.
+     * Returns the server's current calendar year.
      */
     public int currentYear() {
         return LocalDate.now().getYear();
     }
 
     /**
-     * Повертає поточну дату сервера.
+     * Returns the server's current date.
      */
     public LocalDate today() {
         return LocalDate.now();
     }
 
     /**
-     * Перевіряє, чи належить матч до поточного року.
+     * Checks whether a match belongs to the current year.
      */
     public boolean isCurrentYear(Match match) {
         return match.getDate() != null && match.getDate().getYear() == currentYear();
     }
 
     /**
-     * Перевіряє, чи матч уже мав відбутися на момент запиту.
+     * Checks whether the match should already have been played at request time.
      */
     public boolean hasBeenPlayed(Match match) {
         return match.getDate() != null && !match.getDate().isAfter(today());
     }
 
     /**
-     * Повертає рік, за який слід показувати статистику у застосунку.
+     * Returns the year for which the application should display statistics.
      */
     public int relevantYear() {
         return currentYear();
     }
 
     /**
-     * Перевіряє, чи належить матч до року, обраного для відображення.
+     * Checks whether a match belongs to the currently displayed year.
      */
     public boolean isRelevantYear(Match match) {
         return isCurrentYear(match);
     }
 }
+

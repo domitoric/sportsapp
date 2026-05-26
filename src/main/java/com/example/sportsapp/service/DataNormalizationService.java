@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Нормалізує дані після старту застосунку: об'єднує дублікати команд і виправляє зв'язки.
+ * Normalizes data after application startup by merging duplicate teams and fixing their relations.
  */
 @Service
 @RequiredArgsConstructor
@@ -32,17 +32,17 @@ public class DataNormalizationService {
     private final StatisticsService statisticsService;
 
     /**
-     * Запускає нормалізацію даних після повного старту застосунку.
+     * Runs data normalization after the application has fully started.
      */
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void normalizeData() {
         mergeDuplicateTeams();
-        statisticsService.recalculateStatistics();
+        statisticsService.recalculateAllStatistics();
     }
 
     /**
-     * Об'єднує дублікати команд за зовнішнім id або нормалізованою назвою.
+     * Merges duplicate teams by external id or normalized name.
      */
     private void mergeDuplicateTeams() {
         List<Team> allTeams = new ArrayList<>(teamRepository.findAll());
@@ -66,7 +66,7 @@ public class DataNormalizationService {
     }
 
     /**
-     * Об'єднує одну групу дублікатів у єдиний основний запис.
+     * Merges one duplicate group into a single primary record.
      */
     private void mergeTeamGroup(List<Team> duplicates) {
         Team survivor = chooseSurvivor(duplicates);
@@ -80,30 +80,40 @@ public class DataNormalizationService {
     }
 
     /**
-     * Додатково зливає локальні команди без external id у відповідні зовнішні записи.
+     * Also merges local teams without an external id into matching external records.
      */
     private void mergeNameOnlyTeamsIntoExternalTeams() {
         List<Team> teams = teamRepository.findAll();
-        Map<String, Team> externalTeamsByName = teams.stream()
-                .filter(team -> team.getExternalTeamId() != null)
-                .filter(team -> team.getName() != null && !team.getName().isBlank())
-                .sorted(teamPriority())
-                .collect(LinkedHashMap::new, (map, team) -> map.putIfAbsent(normalizeName(team.getName()), team), Map::putAll);
+        Map<Long, List<Team>> teamsByOwner = teams.stream()
+                .filter(team -> team.getOwner() != null && team.getOwner().getId() != null)
+                .collect(LinkedHashMap::new,
+                        (map, team) -> map.computeIfAbsent(team.getOwner().getId(), ignored -> new ArrayList<>()).add(team),
+                        Map::putAll);
 
-        for (Team team : teams) {
-            if (team.getExternalTeamId() != null || team.getName() == null || team.getName().isBlank()) {
-                continue;
-            }
-            Team survivor = externalTeamsByName.get(normalizeName(team.getName()));
-            if (survivor != null && !survivor.getId().equals(team.getId())) {
-                mergeTeamIntoSurvivor(team, survivor);
-                teamRepository.save(survivor);
+        for (List<Team> ownerTeams : teamsByOwner.values()) {
+            Map<String, Team> externalTeamsByName = ownerTeams.stream()
+                    .filter(team -> team.getExternalTeamId() != null)
+                    .filter(team -> team.getName() != null && !team.getName().isBlank())
+                    .sorted(teamPriority())
+                    .collect(LinkedHashMap::new,
+                            (map, team) -> map.putIfAbsent(normalizeName(team.getName()), team),
+                            Map::putAll);
+
+            for (Team team : ownerTeams) {
+                if (team.getExternalTeamId() != null || team.getName() == null || team.getName().isBlank()) {
+                    continue;
+                }
+                Team survivor = externalTeamsByName.get(normalizeName(team.getName()));
+                if (survivor != null && !survivor.getId().equals(team.getId())) {
+                    mergeTeamIntoSurvivor(team, survivor);
+                    teamRepository.save(survivor);
+                }
             }
         }
     }
 
     /**
-     * Переносить усі зв'язки з команди-дубліката на команду, що вижила після злиття.
+     * Moves all relations from the duplicate team to the team that survives the merge.
      */
     private void mergeTeamIntoSurvivor(Team source, Team survivor) {
         if (survivor.getExternalTeamId() == null && source.getExternalTeamId() != null) {
@@ -117,8 +127,11 @@ public class DataNormalizationService {
         }
         survivor.setTracked(survivor.isTracked() || source.isTracked());
 
-        for (Player player : playerRepository.findByTeam_IdOrderByNameAsc(source.getId())) {
+        for (Player player : playerRepository.findAll().stream()
+                .filter(candidate -> candidate.getTeam() != null && candidate.getTeam().getId().equals(source.getId()))
+                .toList()) {
             player.setTeam(survivor);
+            player.setOwner(survivor.getOwner());
             playerRepository.save(player);
         }
 
@@ -155,7 +168,7 @@ public class DataNormalizationService {
     }
 
     /**
-     * Обирає команду, яка залишиться основним записом після злиття.
+     * Chooses the team that remains the primary record after the merge.
      */
     private Team chooseSurvivor(List<Team> teams) {
         return teams.stream()
@@ -165,7 +178,7 @@ public class DataNormalizationService {
     }
 
     /**
-     * Визначає пріоритет команди під час вибору основного запису.
+     * Calculates team priority when choosing the primary record.
      */
     private Comparator<Team> teamPriority() {
         return Comparator
@@ -176,19 +189,23 @@ public class DataNormalizationService {
     }
 
     /**
-     * Формує ключ групування для пошуку дублікатів.
+     * Builds the grouping key used to find duplicates.
      */
     private String groupKey(Team team) {
+        String ownerKey = team.getOwner() == null || team.getOwner().getId() == null
+                ? "owner:none"
+                : "owner:" + team.getOwner().getId();
         if (team.getExternalTeamId() != null) {
-            return "ext:" + team.getExternalTeamId();
+            return ownerKey + ":ext:" + team.getExternalTeamId();
         }
-        return "name:" + normalizeName(team.getName());
+        return ownerKey + ":name:" + normalizeName(team.getName());
     }
 
     /**
-     * Нормалізує назву команди для порівняння без урахування регістру.
+     * Normalizes a team name for case-insensitive comparison.
      */
     private String normalizeName(String name) {
         return name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
     }
 }
+

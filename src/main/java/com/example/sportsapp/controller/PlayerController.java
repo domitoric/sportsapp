@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * REST-контролер для CRUD-операцій над гравцями.
+ * REST controller for CRUD operations on players.
  */
 @RestController
 @RequestMapping("/players")
@@ -28,7 +28,7 @@ public class PlayerController {
     private final PlayerService playerService;
 
     /**
-     * Створює нового локального гравця.
+     * Creates a new local player.
      */
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
@@ -37,7 +37,7 @@ public class PlayerController {
     }
 
     /**
-     * Повертає всіх гравців із локальної бази.
+     * Returns all players from the local database.
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public List<PlayerDto> getAll() {
@@ -45,7 +45,7 @@ public class PlayerController {
     }
 
     /**
-     * Повертає одного гравця за локальним ідентифікатором.
+     * Returns a single player by local id.
      */
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public PlayerDto getById(@PathVariable Long id) {
@@ -53,7 +53,7 @@ public class PlayerController {
     }
 
     /**
-     * Оновлює дані локального гравця.
+     * Updates local player data.
      */
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public PlayerDto update(@PathVariable Long id, @Valid @RequestBody PlayerDto dto) {
@@ -61,7 +61,7 @@ public class PlayerController {
     }
 
     /**
-     * Видаляє гравця з локальної бази.
+     * Deletes a player from the local database.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -70,7 +70,7 @@ public class PlayerController {
     }
 
     /**
-     * Повертає список найрезультативніших гравців.
+     * Returns the list of top scorers.
      */
     @GetMapping(value = "/top", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<PlayerDto> getTopPlayers() {
